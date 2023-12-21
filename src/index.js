@@ -1,8 +1,11 @@
 import { CommandLineLogger } from "./CommandLineLogger";
 import prompt from "prompts";
 import packageJson from "../package.json";
+import fs from "fs";
 
-export async function CLIasync(logger) {
+let logger = new CommandLineLogger();
+
+export async function CLIasync() {
   const packageInfoLine = `${packageJson.name} v${packageJson.version}\n\n`;
   logger.logMessage(packageInfoLine);
 
@@ -11,6 +14,7 @@ export async function CLIasync(logger) {
   const projectOrigName = cwdPieces[cwdPieces.length - 1];
 
   let done = false;
+  let finalAnswers = null;
   while (!done) {
     const questions = [
       {
@@ -62,6 +66,7 @@ export async function CLIasync(logger) {
 
     logger.logMessage("Ok, this is your requested configuration: \n");
     logger.logJson(answers);
+    finalAnswers = answers;
 
     const confirmationQuestion = [
       {
@@ -83,16 +88,39 @@ export async function CLIasync(logger) {
     done = confirmationAnswer.confirm;
   }
 
-  logger.startProcess("Retrieving template code from github");
-  await new Promise((resolve, reject) => {
-    setTimeout(resolve, 1000);
-  });
+  startPhase(
+    "checkDir",
+    `Checking that ${finalAnswers.location} exists or creating it...`,
+    () => {
+      return new Promise(async (resolve, reject) => {
+        if (!fs.existsSync(finalAnswers.location)) {
+          // We need to create the directory
+          fs.mkdirSync(finalAnswers.location);
+        } else {
+          let files = fs.readdirSync(finalAnswers.location);
+          if (files.length > 0) {
+            reject(`${finalAnswers.location} is not empty!`);
+          }
+        }
+
+        resolve();
+      });
+    }
+  );
 }
 
-export function CLI(output) {
-  const logger = new CommandLineLogger(output);
+function startPhase(name, description, workFunction, args) {
+  logger.startProcess(description);
 
-  CLIasync(logger).then(() => {
-    logger.stopProcessSuccess();
-  });
+  return workFunction()
+    .then(() => {
+      logger.stopProcessSuccess();
+    })
+    .catch((err) => {
+      logger.stopProcessFailure(err);
+    });
+}
+
+export function CLI() {
+  CLIasync();
 }

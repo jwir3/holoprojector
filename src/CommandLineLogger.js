@@ -3,19 +3,22 @@ import ansiColors from "ansi-colors";
 import pad from "@stdlib/string-pad";
 import { highlight } from "cli-highlight";
 
+import { stdout } from "process";
+
 const cursorEsc = {
   hide: "\u001B[?25l",
   show: "\u001B[?25h",
 };
 
 export class CommandLineLogger {
-  constructor(outputDevice) {
-    this.output = outputDevice;
+  constructor() {
+    this.output = stdout;
     this.processTimer = null;
     this.lastMessage = null;
   }
 
   startProcess(message) {
+    this.lastMessage = message;
     const characters = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
     this.output.write(cursorEsc.hide);
@@ -31,7 +34,6 @@ export class CommandLineLogger {
         );
       }
 
-      self.lastMessage = message;
       self.output.write("\r  " + nextDisplayableString);
       i = i >= characters.length ? 0 : i;
     }, 150);
@@ -55,12 +57,27 @@ export class CommandLineLogger {
         "\r  " +
           ansiColors.green("✔") +
           " " +
-          pad(message, this.lastMessage.length + 10, {
+          pad(message, this.lastMessage.length, {
             rpad: " ",
           }) +
           "\n"
       );
     }
+  }
+
+  stopProcessFailure(message) {
+    clearInterval(this.processTimer);
+    this.output.write(cursorEsc.hide);
+    this.output.write(
+      "\r  " +
+        ansiColors.red("✘") +
+        " " +
+        pad(this.lastMessage, this.lastMessage.length, { rpad: " " }) +
+        "\n"
+    );
+
+    this.output.write("\n\n");
+    this.logError(message);
   }
 
   logMessage(message) {
