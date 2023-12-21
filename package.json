@@ -4,7 +4,7 @@
   "description": "A tool for scaffolding WebGL and OpenGL projects.",
   "main": "bin/cli.js",
   "scripts": {
-    "build": "webpack -c webpack.config.js",
+    "build": "rollup --config rollup.config.js --bundleConfigAsCjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -24,14 +24,18 @@
   },
   "homepage": "https://github.com/jwir3/holoprojector#readme",
   "devDependencies": {
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4"
+    "babelrc-rollup": "^3.0.0",
+    "rollup": "^4.9.1",
+    "rollup-plugin-babel": "^4.4.0"
   },
   "dependencies": {
+    "@rollup/plugin-json": "^6.1.0",
     "@stdlib/string-pad": "^0.1.1",
     "ansi-colors": "^4.1.3",
+    "cli-highlight": "^2.1.11",
     "figures": "^6.0.1",
     "log-symbols": "^6.0.0",
-    "process": "^0.11.10"
+    "process": "^0.11.10",
+    "prompts": "^2.4.2"
   }
 }

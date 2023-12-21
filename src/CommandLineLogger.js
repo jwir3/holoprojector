@@ -1,6 +1,7 @@
 import ansiColors from "ansi-colors";
 
 import pad from "@stdlib/string-pad";
+import { highlight } from "cli-highlight";
 
 const cursorEsc = {
   hide: "\u001B[?25l",
@@ -11,7 +12,7 @@ export class CommandLineLogger {
   constructor(outputDevice) {
     this.output = outputDevice;
     this.processTimer = null;
-    this.lastMessageCharacters = 0;
+    this.lastMessage = null;
   }
 
   startProcess(message) {
@@ -23,38 +24,55 @@ export class CommandLineLogger {
     let self = this;
     this.processTimer = setInterval(function () {
       let nextDisplayableString = characters[i++] + " " + message;
-      if (this.lastMessageCharacters > 0) {
+      if (self.lastMessage && self.lastMessage.length > 0) {
         nextDisplayableString = pad(
           nextDisplayableString,
-          this.lastMessageCharacters
+          self.lastMessage.length
         );
       }
 
-      this.lastMessageCharacters = nextDisplayableString.length;
-      self.output.write("\r\t" + nextDisplayableString);
+      self.lastMessage = message;
+      self.output.write("\r  " + nextDisplayableString);
       i = i >= characters.length ? 0 : i;
     }, 150);
 
     return () => {
       clearInterval(this.processTimer);
-      this.output.write("\r\t");
+      this.output.write("\r  ");
       this.output.write(cursorEsc.show);
     };
   }
 
-  stopProcess(message) {
+  stopProcessSuccess(message) {
+    if (!message) {
+      message = this.lastMessage;
+    }
+
     if (this.processTimer) {
       clearInterval(this.processTimer);
       this.output.write(cursorEsc.hide);
       this.output.write(
-        "\r\t" +
+        "\r  " +
           ansiColors.green("✔") +
           " " +
-          pad(message, this.lastMessageCharacters, {
+          pad(message, this.lastMessage.length + 10, {
             rpad: " ",
           }) +
           "\n"
       );
     }
+  }
+
+  logMessage(message) {
+    this.output.write(ansiColors.bold(message));
+  }
+
+  logError(message) {
+    this.output.write(ansiColors.bold.redBright("Error: " + message + "\n"));
+  }
+
+  logJson(code) {
+    const prettifiedCode = JSON.stringify(code, null, 4);
+    this.output.write(highlight(prettifiedCode) + "\n\n");
   }
 }
