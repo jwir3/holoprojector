@@ -1,7 +1,15 @@
 import { CommandLineLogger } from "./CommandLineLogger";
 import prompt from "prompts";
-import packageJson from "../package.json";
+import { simpleGit } from "simple-git";
+
+import path from "path";
+import os from "os";
 import fs from "fs";
+
+import packageJson from "../package.json";
+
+const DEFAULT_TEMPLATE_REPO =
+  "https://www.github.com/jwir3/graphics-templates.git";
 
 let logger = new CommandLineLogger();
 
@@ -88,7 +96,9 @@ export async function CLIasync() {
     done = confirmationAnswer.confirm;
   }
 
-  startPhase(
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "graphicsTemplates-"));
+
+  await startPhase(
     "checkDir",
     `Checking that ${finalAnswers.location} exists or creating it...`,
     () => {
@@ -107,6 +117,46 @@ export async function CLIasync() {
       });
     }
   );
+
+  // Clone the desired repo to a temporary directory.
+  await startPhase(
+    "cloneBaseRepo",
+    `Retrieving the template repository...`,
+    () => {
+      let git = simpleGit();
+      return git.clone(DEFAULT_TEMPLATE_REPO, tempDir);
+    }
+  );
+
+  await startPhase(
+    "copyBaseFiles",
+    `Copying files from ${finalAnswers.projectType} to ${finalAnswers.location}...`,
+    () => {
+      return new Promise((resolve, reject) => {
+        fs.cpSync(
+          path.join(tempDir, finalAnswers.projectType),
+          finalAnswers.location,
+          { recursive: true }
+        );
+        fs.cpSync(
+          path.join(tempDir, "shaders"),
+          path.join(finalAnswers.location, "shaders"),
+          {
+            recursive: true,
+          }
+        );
+
+        resolve();
+      });
+    }
+  );
+
+  if (finalAnswers.createGitRepo) {
+    await startPhase("createGitRepo", "Creating git repository...", () => {
+      let git = simpleGit({ baseDir: finalAnswers.location });
+      return git.init();
+    });
+  }
 }
 
 function startPhase(name, description, workFunction, args) {
